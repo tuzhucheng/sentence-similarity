@@ -1,1 +1,3 @@
 .idea/
+.vector_cache/
+__pycache__/

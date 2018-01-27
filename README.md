@@ -6,3 +6,12 @@ I plan to implement some models for sentence similarity found in the literature 
 * **Semantic Texual Similarity**: Given two sentences, how close are they in terms of semantic equivalence?
 * **Natural Language Inference / Textual Entailment**: Can one sentence be inferred from another sentence (the premise)?
 * **Answer Selection**: Given question-answer pairs, rank candidate answers based on relevance to question.
+
+## Setup
+
+Install packages in `requirements.txt`.
+
+Download SpaCy English model:
+```
+python -m spacy download en
+```

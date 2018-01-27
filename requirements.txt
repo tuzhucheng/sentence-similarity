@@ -1,3 +1,4 @@
 numpy==1.14.0
+spacy==2.0.5
 torch==0.3.0.post4
-torchtext==0.2.0
+torchtext==0.2.1
