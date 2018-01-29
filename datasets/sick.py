@@ -41,13 +41,13 @@ class SICK(TabularDataset):
                                        skip_header=True)
 
     @classmethod
-    def iters(cls, batch_size=64, device=-1, vectors='glove.840B.300d'):
+    def iters(cls, batch_size=64, device=-1, shuffle=True, vectors='glove.840B.300d'):
 
-        TEXT = Field(sequential=True, tokenize='spacy', lower=True, batch_first=True)
-        LABEL = Field(sequential=False, use_vocab=False, batch_first=True, tensor_type=torch.FloatTensor)
+        cls.TEXT = Field(sequential=True, tokenize='spacy', lower=True, batch_first=True)
+        cls.LABEL = Field(sequential=False, use_vocab=False, batch_first=True, tensor_type=torch.FloatTensor)
 
-        train, val, test = cls.splits(TEXT, LABEL)
+        train, val, test = cls.splits(cls.TEXT, cls.LABEL)
 
-        TEXT.build_vocab(train, vectors=vectors)
+        cls.TEXT.build_vocab(train, vectors=vectors)
 
-        return BucketIterator.splits((train, val, test), batch_size=batch_size, device=device)
+        return BucketIterator.splits((train, val, test), batch_size=batch_size, shuffle=shuffle, repeat=False, device=device)
