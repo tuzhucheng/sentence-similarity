@@ -4,13 +4,26 @@ on Full Sentences through Semantic Relatedness and Entailment
 http://alt.qcri.org/semeval2014/task1/index.php?id=data-and-tools
 """
 import torch
-from torchtext.data import BucketIterator, Field, interleave_keys
+from torchtext.data import BucketIterator, Field, interleave_keys, RawField
 from torchtext.data.dataset import TabularDataset
 
 
 class SICK(TabularDataset):
 
     name = 'sick'
+
+    def __init__(self, path, format, fields, skip_header=True, **kwargs):
+        super(SICK, self).__init__(path, format, fields, skip_header, **kwargs)
+
+        # We want to keep a raw copy of the sentence for some models and for debugging
+        RAW_TEXT_FIELD = RawField()
+        for ex in self.examples:
+            raw_sentence_a, raw_sentence_b = ex.sentence_a[:], ex.sentence_b[:]
+            setattr(ex, 'raw_sentence_a', raw_sentence_a)
+            setattr(ex, 'raw_sentence_b', raw_sentence_b)
+
+        self.fields['raw_sentence_a'] = RAW_TEXT_FIELD
+        self.fields['raw_sentence_b'] = RAW_TEXT_FIELD
 
     @staticmethod
     def sort_key(ex):
@@ -28,9 +41,9 @@ class SICK(TabularDataset):
                                        skip_header=True)
 
     @classmethod
-    def iters(cls, batch_size=64, device=0, vectors='glove.840B.300d'):
+    def iters(cls, batch_size=64, device=-1, vectors='glove.840B.300d'):
 
-        TEXT = Field(sequential=True, tokenize='spacy', batch_first=True)
+        TEXT = Field(sequential=True, tokenize='spacy', lower=True, batch_first=True)
         LABEL = Field(sequential=False, use_vocab=False, batch_first=True, tensor_type=torch.FloatTensor)
 
         train, val, test = cls.splits(TEXT, LABEL)
