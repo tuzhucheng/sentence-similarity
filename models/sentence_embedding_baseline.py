@@ -16,25 +16,31 @@ class SmoothInverseFrequencyBaseline(object):
         self.remove_special_direction = remove_special_direction
         self.unigram_prob = defaultdict(int)
 
+    def _compute_sentence_embedding_as_weighted_sum(self, sentence, sentence_embedding):
+        """
+        Compute sentence embedding as weighted sum of word vectors of its individual words.
+        :param sentence: Tokenized sentence
+        :param sentence_embedding: A 2D tensor where dim 0 is the word vector dimension and dim 1 is the words
+        :return: A vector that is the weighted word vectors of the words in the sentence
+        """
+        weights = [self.alpha / (self.unigram_prob.get(w, 0) + self.alpha) for w in sentence]
+        weights.extend([0.0] * (sentence_embedding.size(1) - len(weights)))  # expand weights to cover padding
+        weights = torch.FloatTensor(weights).expand_as(sentence_embedding)
+
+        return (weights * sentence_embedding).sum(1)
+
+
     def compute_sentence_embedding(self, batch):
         sentence_embedding_a = torch.zeros(batch.sentence_a.size(0), self.embedding.weight.size(1))
         sentence_embedding_b = torch.zeros(batch.sentence_b.size(0), self.embedding.weight.size(1))
 
         # compute weighted sum of word vectors
         for i, (raw_sent_a, raw_sent_b, sent_a_idx, sent_b_idx) in enumerate(zip(batch.raw_sentence_a, batch.raw_sentence_b, batch.sentence_a, batch.sentence_b)):
-            sent_a = self.embedding(sent_a_idx).transpose(0, 1)
-            sent_b = self.embedding(sent_b_idx).transpose(0, 1)
+            sent_a = self.embedding(sent_a_idx).transpose(0, 1).data
+            sent_b = self.embedding(sent_b_idx).transpose(0, 1).data
 
-            sent_a_weights = [self.alpha / (self.unigram_prob.get(w, 0) + self.alpha) for w in raw_sent_a]
-            sent_a_weights.extend([0.0] * (sent_a.size(1) - len(sent_a_weights)))  # expand weights to cover padding
-            sent_a_weights = torch.FloatTensor(sent_a_weights).expand_as(sent_a)
-
-            sent_b_weights = [self.alpha / (self.unigram_prob.get(w, 0) + self.alpha) for w in raw_sent_b]
-            sent_b_weights.extend([0.0] * (sent_b.size(1) - len(sent_b_weights)))  # expand weights to cover padding
-            sent_b_weights = torch.FloatTensor(sent_b_weights).expand_as(sent_b)
-
-            sentence_embedding_a[i] = (sent_a_weights * sent_a.data).sum(1)
-            sentence_embedding_b[i] = (sent_b_weights * sent_b.data).sum(1)
+            sentence_embedding_a[i] = self._compute_sentence_embedding_as_weighted_sum(raw_sent_a, sent_a)
+            sentence_embedding_b[i] = self._compute_sentence_embedding_as_weighted_sum(raw_sent_b, sent_b)
 
         # remove projection on first principle component
         if self.remove_special_direction:
