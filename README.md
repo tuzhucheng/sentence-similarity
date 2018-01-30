@@ -15,3 +15,8 @@ Download SpaCy English model:
 ```
 python -m spacy download en
 ```
+
+## Attribution
+
+The English Wikipedia token frequency dataset for estimating p(w) in the baseline model is obtained from the official
+SIF implementation: https://github.com/PrincetonML/SIF.
