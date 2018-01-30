@@ -26,7 +26,7 @@ if __name__ == '__main__':
     model = SmoothInverseFrequencyBaseline(args.alpha, embedding,
                                            remove_special_direction=not args.no_remove_special_direction,
                                            frequency_dataset=args.frequency_dataset)
-    model.fit(train_loader)
+    model.populate_word_frequency_estimation(train_loader)
     train_pearson, train_spearman = model.score(train_loader)
     dev_pearson, dev_spearman = model.score(dev_loader)
     test_pearson, test_spearman = model.score(test_loader)

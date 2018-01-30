@@ -7,16 +7,40 @@ from collections import defaultdict
 import scipy.stats as stats
 from sklearn.decomposition import TruncatedSVD
 import torch
+import torch.nn as nn
 
 
-class SmoothInverseFrequencyBaseline(object):
+class SmoothInverseFrequencyBaseline(nn.Module):
 
     def __init__(self, alpha, embedding, remove_special_direction=True, frequency_dataset='enwiki'):
+        super(SmoothInverseFrequencyBaseline, self).__init__()
         self.alpha = alpha
         self.embedding = embedding
         self.remove_special_direction = remove_special_direction
         self.frequency_dataset = frequency_dataset
         self.unigram_prob = defaultdict(int)
+
+    def populate_word_frequency_estimation(self, data_loader):
+        """
+        Computing and storing the unigram probability.
+        """
+        if self.frequency_dataset == 'enwiki':
+            with open('./data/enwiki_vocab_min200.txt') as f:
+                for line in f:
+                    word, freq = line.split(' ')
+                    self.unigram_prob[word] += 1
+        else:
+            for batch_idx, batch in enumerate(data_loader):
+                for sent_a, sent_b in zip(batch.raw_sentence_a, batch.raw_sentence_b):
+                    for w in sent_a:
+                        self.unigram_prob[w] += 1
+
+                    for w in sent_b:
+                        self.unigram_prob[w] += 1
+
+        total_words = sum(self.unigram_prob.values())
+        for word, count in self.unigram_prob.items():
+            self.unigram_prob[word] = count / total_words
 
     def _compute_sentence_embedding_as_weighted_sum(self, sentence, sentence_embedding):
         """
@@ -67,28 +91,9 @@ class SmoothInverseFrequencyBaseline(object):
 
         return sentence_embedding_a, sentence_embedding_b
 
-    def fit(self, data_loader):
-        """
-        Training just consists of computing the unigram probability and getting the evaluation
-        metrics on the training set.
-        """
-        if self.frequency_dataset == 'enwiki':
-            with open('./data/enwiki_vocab_min200.txt') as f:
-                for line in f:
-                    word, freq = line.split(' ')
-                    self.unigram_prob[word] += 1
-        else:
-            for batch_idx, batch in enumerate(data_loader):
-                for sent_a, sent_b in zip(batch.raw_sentence_a, batch.raw_sentence_b):
-                    for w in sent_a:
-                        self.unigram_prob[w] += 1
-
-                    for w in sent_b:
-                        self.unigram_prob[w] += 1
-
-        total_words = sum(self.unigram_prob.values())
-        for word, count in self.unigram_prob.items():
-            self.unigram_prob[word] = count / total_words
+    def forward(self):
+        if len(self.unigram_prob) == 0:
+            raise ValueError('Word frequency lookup dictionary is not populated. Did you call populate_word_frequency_estimation?')
 
     def score(self, data_loader):
         """
