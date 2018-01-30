@@ -35,7 +35,7 @@ class SmoothInverseFrequencyBaseline(object):
         """
         Remove the projection onto the first principle component of the sentences from each sentence embedding.
         See https://plot.ly/ipython-notebooks/principal-component-analysis/ for a nice tutorial on PCA.
-        Follows official implementation at https://github.com/PrincetonML/SIF/blob/master/src/SIF_embedding.py
+        Follows official implementation at https://github.com/PrincetonML/SIF
         :param batch_sentence_embedding: A group of sentence embeddings (a 2D tensor, each row is a separate
         sentence and each column is a feature of a sentence)
         :return: A new batch sentence embedding with the projection removed
@@ -44,9 +44,9 @@ class SmoothInverseFrequencyBaseline(object):
         svd = TruncatedSVD(n_components=1, n_iter=7)
         X = batch_sentence_embedding.numpy()
         svd.fit(X)
-        pc = svd.components_
-        new_embedding = X - X.dot(pc.transpose()) * pc
-        return torch.FloatTensor(new_embedding)
+        pc = torch.FloatTensor(svd.components_)
+        new_embedding = batch_sentence_embedding - batch_sentence_embedding.matmul(pc.transpose(0, 1)).matmul(pc)
+        return new_embedding
 
     def compute_sentence_embedding(self, batch):
         sentence_embedding_a = torch.zeros(batch.sentence_a.size(0), self.embedding.weight.size(1))
