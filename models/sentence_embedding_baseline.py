@@ -11,10 +11,11 @@ import torch
 
 class SmoothInverseFrequencyBaseline(object):
 
-    def __init__(self, alpha, embedding, remove_special_direction=True):
+    def __init__(self, alpha, embedding, remove_special_direction=True, frequency_dataset='enwiki'):
         self.alpha = alpha
         self.embedding = embedding
         self.remove_special_direction = remove_special_direction
+        self.frequency_dataset = frequency_dataset
         self.unigram_prob = defaultdict(int)
 
     def _compute_sentence_embedding_as_weighted_sum(self, sentence, sentence_embedding):
@@ -34,6 +35,7 @@ class SmoothInverseFrequencyBaseline(object):
         """
         Remove the projection onto the first principle component of the sentences from each sentence embedding.
         See https://plot.ly/ipython-notebooks/principal-component-analysis/ for a nice tutorial on PCA.
+        Follows official implementation at https://github.com/PrincetonML/SIF/blob/master/src/SIF_embedding.py
         :param batch_sentence_embedding: A group of sentence embeddings (a 2D tensor, each row is a separate
         sentence and each column is a feature of a sentence)
         :return: A new batch sentence embedding with the projection removed
@@ -70,13 +72,19 @@ class SmoothInverseFrequencyBaseline(object):
         Training just consists of computing the unigram probability and getting the evaluation
         metrics on the training set.
         """
-        for batch_idx, batch in enumerate(data_loader):
-            for sent_a, sent_b in zip(batch.raw_sentence_a, batch.raw_sentence_b):
-                for w in sent_a:
-                    self.unigram_prob[w] += 1
+        if self.frequency_dataset == 'enwiki':
+            with open('./data/enwiki_vocab_min200.txt') as f:
+                for line in f:
+                    word, freq = line.split(' ')
+                    self.unigram_prob[word] += 1
+        else:
+            for batch_idx, batch in enumerate(data_loader):
+                for sent_a, sent_b in zip(batch.raw_sentence_a, batch.raw_sentence_b):
+                    for w in sent_a:
+                        self.unigram_prob[w] += 1
 
-                for w in sent_b:
-                    self.unigram_prob[w] += 1
+                    for w in sent_b:
+                        self.unigram_prob[w] += 1
 
         total_words = sum(self.unigram_prob.values())
         for word, count in self.unigram_prob.items():
