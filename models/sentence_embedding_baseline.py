@@ -7,18 +7,31 @@ from collections import defaultdict
 import scipy.stats as stats
 from sklearn.decomposition import TruncatedSVD
 import torch
+from torch.autograd import Variable
 import torch.nn as nn
 
 
 class SmoothInverseFrequencyBaseline(nn.Module):
 
-    def __init__(self, alpha, embedding, remove_special_direction=True, frequency_dataset='enwiki'):
+    def __init__(self, n_out, alpha, embedding, remove_special_direction=True, frequency_dataset='enwiki', supervised=True):
         super(SmoothInverseFrequencyBaseline, self).__init__()
+        self.n_out = n_out
         self.alpha = alpha
         self.embedding = embedding
         self.remove_special_direction = remove_special_direction
         self.frequency_dataset = frequency_dataset
+        self.supervised = supervised
+
         self.unigram_prob = defaultdict(int)
+        self.word_vec_dim = self.embedding.weight.size(1)
+
+        if supervised:
+            self.classifier = nn.Sequential(
+                nn.Linear(2*self.word_vec_dim, 2400),
+                nn.Sigmoid(),
+                nn.Linear(2400, n_out),
+                nn.LogSoftmax()
+            )
 
     def populate_word_frequency_estimation(self, data_loader):
         """
@@ -28,7 +41,7 @@ class SmoothInverseFrequencyBaseline(nn.Module):
             with open('./data/enwiki_vocab_min200.txt') as f:
                 for line in f:
                     word, freq = line.split(' ')
-                    self.unigram_prob[word] += 1
+                    self.unigram_prob[word] = int(freq)
         else:
             for batch_idx, batch in enumerate(data_loader):
                 for sent_a, sent_b in zip(batch.raw_sentence_a, batch.raw_sentence_b):
@@ -51,9 +64,9 @@ class SmoothInverseFrequencyBaseline(nn.Module):
         """
         weights = [self.alpha / (self.unigram_prob.get(w, 0) + self.alpha) for w in sentence]
         weights.extend([0.0] * (sentence_embedding.size(1) - len(weights)))  # expand weights to cover padding
-        weights = torch.FloatTensor(weights).expand_as(sentence_embedding)
+        weights = torch.FloatTensor(weights).expand_as(sentence_embedding.data)
 
-        return (weights * sentence_embedding).sum(1)
+        return (Variable(weights) * sentence_embedding).sum(1)
 
     def _remove_projection_on_first_principle_component(self, batch_sentence_embedding):
         """
@@ -66,20 +79,31 @@ class SmoothInverseFrequencyBaseline(nn.Module):
         """
         # Use truncated SVD to not center data
         svd = TruncatedSVD(n_components=1, n_iter=7)
-        X = batch_sentence_embedding.numpy()
+        X = batch_sentence_embedding.data.numpy()
         svd.fit(X)
-        pc = torch.FloatTensor(svd.components_)
+        pc = Variable(torch.FloatTensor(svd.components_))
         new_embedding = batch_sentence_embedding - batch_sentence_embedding.matmul(pc.transpose(0, 1)).matmul(pc)
         return new_embedding
 
+    def cosine_similarity(self, sentence_embedding_a, sentence_embedding_b):
+        """
+        Compute cosine similarity of sentence embedding a and sentence embedding b.
+        Each row is the sentence embedding (vector) for a sentence.
+        """
+        dot_product = (sentence_embedding_a * sentence_embedding_b).sum(1)
+        norm_a = sentence_embedding_a.norm(p=2, dim=1)
+        norm_b = sentence_embedding_b.norm(p=2, dim=1)
+        cosine_sim = dot_product / (norm_a * norm_b)
+        return cosine_sim
+
     def compute_sentence_embedding(self, batch):
-        sentence_embedding_a = torch.zeros(batch.sentence_a.size(0), self.embedding.weight.size(1))
-        sentence_embedding_b = torch.zeros(batch.sentence_b.size(0), self.embedding.weight.size(1))
+        sentence_embedding_a = Variable(torch.zeros(batch.sentence_a.size(0), self.word_vec_dim))
+        sentence_embedding_b = Variable(torch.zeros(batch.sentence_b.size(0), self.word_vec_dim))
 
         # compute weighted sum of word vectors
         for i, (raw_sent_a, raw_sent_b, sent_a_idx, sent_b_idx) in enumerate(zip(batch.raw_sentence_a, batch.raw_sentence_b, batch.sentence_a, batch.sentence_b)):
-            sent_a = self.embedding(sent_a_idx).transpose(0, 1).data
-            sent_b = self.embedding(sent_b_idx).transpose(0, 1).data
+            sent_a = self.embedding(sent_a_idx).transpose(0, 1)
+            sent_b = self.embedding(sent_b_idx).transpose(0, 1)
 
             sentence_embedding_a[i] = self._compute_sentence_embedding_as_weighted_sum(raw_sent_a, sent_a)
             sentence_embedding_b[i] = self._compute_sentence_embedding_as_weighted_sum(raw_sent_b, sent_b)
@@ -91,9 +115,19 @@ class SmoothInverseFrequencyBaseline(nn.Module):
 
         return sentence_embedding_a, sentence_embedding_b
 
-    def forward(self):
+    def forward(self, batch):
         if len(self.unigram_prob) == 0:
             raise ValueError('Word frequency lookup dictionary is not populated. Did you call populate_word_frequency_estimation?')
+
+        if not self.supervised:
+            raise ValueError('forward should only be called for supervised model.')
+
+        sentence_embedding_a, sentence_embedding_b = self.compute_sentence_embedding(batch)
+        elem_wise_product = sentence_embedding_a * sentence_embedding_b
+        abs_diff = torch.abs(sentence_embedding_a - sentence_embedding_b)
+        concat_input = torch.cat([elem_wise_product, abs_diff], dim=1)
+        output = self.classifier(concat_input)
+        return output
 
     def score(self, data_loader):
         """
@@ -103,12 +137,7 @@ class SmoothInverseFrequencyBaseline(nn.Module):
         gold = []
         for batch_idx, batch in enumerate(data_loader):
             sentence_embedding_a, sentence_embedding_b = self.compute_sentence_embedding(batch)
-
-            dot_product = (sentence_embedding_a * sentence_embedding_b).sum(1)
-            norm_a = sentence_embedding_a.norm(p=2, dim=1)
-            norm_b = sentence_embedding_b.norm(p=2, dim=1)
-            cosine_sim = dot_product / (norm_a * norm_b)
-            scores.append(cosine_sim)
+            scores.append(self.cosine_similarity(sentence_embedding_a, sentence_embedding_b).data)
             gold.append(batch.relatedness_score.data)
 
         predicted_scores = torch.cat(scores).numpy()
