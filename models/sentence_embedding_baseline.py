@@ -5,6 +5,7 @@ https://openreview.net/forum?id=SyK00v5xx
 from collections import defaultdict
 
 import scipy.stats as stats
+from sklearn.decomposition import TruncatedSVD
 import torch
 
 
@@ -29,6 +30,21 @@ class SmoothInverseFrequencyBaseline(object):
 
         return (weights * sentence_embedding).sum(1)
 
+    def _remove_projection_on_first_principle_component(self, batch_sentence_embedding):
+        """
+        Remove the projection onto the first principle component of the sentences from each sentence embedding.
+        See https://plot.ly/ipython-notebooks/principal-component-analysis/ for a nice tutorial on PCA.
+        :param batch_sentence_embedding: A group of sentence embeddings (a 2D tensor, each row is a separate
+        sentence and each column is a feature of a sentence)
+        :return: A new batch sentence embedding with the projection removed
+        """
+        # Use truncated SVD to not center data
+        svd = TruncatedSVD(n_components=1, n_iter=7)
+        X = batch_sentence_embedding.numpy()
+        svd.fit(X)
+        pc = svd.components_
+        new_embedding = X - X.dot(pc.transpose()) * pc
+        return torch.FloatTensor(new_embedding)
 
     def compute_sentence_embedding(self, batch):
         sentence_embedding_a = torch.zeros(batch.sentence_a.size(0), self.embedding.weight.size(1))
@@ -44,8 +60,8 @@ class SmoothInverseFrequencyBaseline(object):
 
         # remove projection on first principle component
         if self.remove_special_direction:
-            # TODO implement
-            pass
+            sentence_embedding_a = self._remove_projection_on_first_principle_component(sentence_embedding_a)
+            sentence_embedding_b = self._remove_projection_on_first_principle_component(sentence_embedding_b)
 
         return sentence_embedding_a, sentence_embedding_b
 

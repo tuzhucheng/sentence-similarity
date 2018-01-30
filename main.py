@@ -23,5 +23,9 @@ if __name__ == '__main__':
     model = SmoothInverseFrequencyBaseline(args.alpha, embedding)
     model.fit(train_loader)
     train_pearson, train_spearman = model.score(train_loader)
+    dev_pearson, dev_spearman = model.score(dev_loader)
+    test_pearson, test_spearman = model.score(test_loader)
 
-    print(f"Training set pearson coefficient is {train_pearson} and spearman coefficient is {train_spearman}")
+    print(f"Training set pearson coefficient is {train_pearson:.4} and spearman coefficient is {train_spearman:.4}")
+    print(f"Dev set pearson coefficient is {dev_pearson:.4} and spearman coefficient is {dev_spearman:.4}")
+    print(f"Testing set pearson coefficient is {test_pearson:.4} and spearman coefficient is {test_spearman:.4}")
