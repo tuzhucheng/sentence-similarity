@@ -28,9 +28,9 @@ class SmoothInverseFrequencyBaseline(nn.Module):
         if supervised:
             self.classifier = nn.Sequential(
                 nn.Linear(2*self.word_vec_dim, 2400),
-                nn.Sigmoid(),
+                nn.Tanh(),
                 nn.Linear(2400, n_out),
-                nn.LogSoftmax()
+                nn.LogSoftmax(1)
             )
 
     def populate_word_frequency_estimation(self, data_loader):
@@ -133,14 +133,23 @@ class SmoothInverseFrequencyBaseline(nn.Module):
         """
         Compute correlation between predicted score and actual score
         """
-        scores = []
+        predictions = []
         gold = []
         for batch_idx, batch in enumerate(data_loader):
             sentence_embedding_a, sentence_embedding_b = self.compute_sentence_embedding(batch)
-            scores.append(self.cosine_similarity(sentence_embedding_a, sentence_embedding_b).data)
-            gold.append(batch.relatedness_score.data)
+            num_classes = batch.relatedness_score.size(1)
+            predict_classes = torch.arange(1, num_classes + 1).expand(len(batch.id), num_classes)
 
-        predicted_scores = torch.cat(scores).numpy()
+            if self.supervised:
+                scores = (predict_classes * self(batch).data.exp()).sum(dim=1)
+            else:
+                scores = self.cosine_similarity(sentence_embedding_a, sentence_embedding_b).data
+            predictions.append(scores)
+
+            true_scores = (predict_classes * batch.relatedness_score.data).sum(dim=1)
+            gold.append(true_scores)
+
+        predicted_scores = torch.cat(predictions).numpy()
         gold_scores = torch.cat(gold).numpy()
 
         pearson_score = stats.pearsonr(predicted_scores, gold_scores)[0]
