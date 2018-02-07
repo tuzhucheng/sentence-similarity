@@ -1,6 +1,7 @@
 *.swp
 .idea/
 .vector_cache/
+*.model
 
 *.pyc
 __pycache__/

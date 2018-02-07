@@ -10,6 +10,7 @@ import torch.optim as O
 
 from datasets.sick import SICK
 from models.sentence_embedding_baseline import SmoothInverseFrequencyBaseline
+import utils
 
 
 if __name__ == '__main__':
@@ -53,6 +54,7 @@ if __name__ == '__main__':
     if args.supervised:
         opt = O.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=3e-4)
         criterion = nn.KLDivLoss()
+        best_dev_pearson = 0
 
         for epoch in range(1, args.epochs + 1):
             train_loader.init_epoch()
@@ -89,6 +91,21 @@ if __name__ == '__main__':
 
             logger.info(f'Train pearson: {train_pearson:.4f}, spearman: {train_spearman:.4f}')
             logger.info(f'Dev pearson: {dev_pearson:.4f}, spearman: {dev_spearman:.4f}')
+
+            if dev_pearson > best_dev_pearson:
+                state_dict = {
+                    'epoch': epoch,
+                    'state_dict': model.state_dict(),
+                    'optimizer': opt.state_dict(),
+                    'train_pearson': train_pearson,
+                    'dev_pearson': dev_pearson
+                }
+                utils.save_checkpoint(state_dict, True, 'sick_supervised.model')
+                best_dev_pearson = dev_pearson
+
+        # Set model parameters to parameters that do best on dev set for evaluation
+        checkpoint = torch.load('sick_supervised.model')
+        model.load_state_dict(checkpoint['state_dict'])
 
     train_pearson, train_spearman = model.score(train_loader)
     dev_pearson, dev_spearman = model.score(dev_loader)
