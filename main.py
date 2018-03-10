@@ -10,7 +10,7 @@ import torch.optim as O
 
 from datasets.sick import SICK
 from models.sentence_embedding_baseline import SmoothInverseFrequencyBaseline
-import utils
+import utils.utils as utils
 
 
 if __name__ == '__main__':
