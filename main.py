@@ -8,26 +8,31 @@ import torch
 import torch.nn as nn
 import torch.optim as O
 
-from datasets.sick import SICK
-from models.sentence_embedding_baseline import SmoothInverseFrequencyBaseline
+from datasets import get_dataset
+from models import get_model
 import utils.utils as utils
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Sentence similarity models')
+    parser.add_argument('--model', default='sif', choices=['sif'], help='Model to use')
+    parser.add_argument('--dataset', default='sick', choices=['sick'], help='Dataset to use')
     parser.add_argument('--batch-size', type=int, default=64, help='Batch size')
-    parser.add_argument('--lr', type=float, default=2e-4, help='Learning rate')
-    parser.add_argument('--seed', type=int, default=1234, help='Seed for supervised approach')
     parser.add_argument('--epochs', type=int, default=15, help='Number of epochs')
+    parser.add_argument('--lr', type=float, default=2e-4, help='Learning rate')
+    parser.add_argument('--seed', type=int, default=1234, help='Seed for reproducibility')
+    parser.add_argument('--device', type=int, default=0, help='Device, -1 for CPU')
+
+    # Special options for SIF model
     parser.add_argument('--unsupervised', action='store_true', default=False, help='Set this flag to use unsupervised mode.')
     parser.add_argument('--alpha', type=float, default=1e-3, help='Smoothing term for smooth inverse frequency baseline model')
     parser.add_argument('--no-remove-special-direction', action='store_true', default=False, help='Set to not remove projection onto first principal component')
     parser.add_argument('--frequency-dataset', default='enwiki', choices=['train', 'enwiki'])
+
     args = parser.parse_args()
     torch.manual_seed(args.seed)
-
-    args.supervised = not args.unsupervised
-    args.remove_special_direction = not args.no_remove_special_direction
+    if args.device != -1:
+        torch.cuda.manual_seed(args.seed)
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
@@ -37,19 +42,14 @@ if __name__ == '__main__':
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
-    train_loader, dev_loader, test_loader = SICK.iters(batch_size=args.batch_size, shuffle=True)
+    dataset_cls, train_loader, dev_loader, test_loader, embedding = get_dataset(args)
+    model = get_model(args, dataset_cls, embedding)
 
-    embedding_dim = SICK.TEXT.vocab.vectors.size()
-    embedding = nn.Embedding(embedding_dim[0], embedding_dim[1])
-    embedding.weight = nn.Parameter(SICK.TEXT.vocab.vectors)
-    embedding.weight.requires_grad = False
-
-    model = SmoothInverseFrequencyBaseline(SICK.num_classes, args.alpha, embedding,
-                                           remove_special_direction=args.remove_special_direction,
-                                           frequency_dataset=args.frequency_dataset,
-                                           supervised=args.supervised)
-
-    model.populate_word_frequency_estimation(train_loader)
+    loss_fn = nn.KLDivLoss()
+    metrics = {
+        'pearson':
+    }
+    optimizer = O.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=3e-4)
 
     if args.supervised:
         opt = O.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=3e-4)
