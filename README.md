@@ -11,6 +11,8 @@ I plan to implement some models for sentence similarity found in the literature 
 
 Install packages in `requirements.txt`.
 
+The`ignite` library, currently in alpha, needs to be installed from source. See https://github.com/pytorch/ignite.
+
 Download SpaCy English model:
 ```
 python -m spacy download en
