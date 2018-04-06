@@ -127,7 +127,12 @@ class SmoothInverseFrequencyBaseline(nn.Module):
         abs_diff = torch.abs(sentence_embedding_a - sentence_embedding_b)
         concat_input = torch.cat([elem_wise_product, abs_diff], dim=1)
         output = self.classifier(concat_input)
-        return output
+
+        num_classes = batch.relatedness_score.size(1)
+        predict_classes = torch.arange(1, num_classes + 1).expand(len(batch.id), num_classes)
+        scores = (predict_classes * self(batch).data.exp()).sum(dim=1)
+
+        return scores
 
     def score(self, data_loader):
         """
