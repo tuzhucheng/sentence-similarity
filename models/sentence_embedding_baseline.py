@@ -4,7 +4,6 @@ https://openreview.net/forum?id=SyK00v5xx
 """
 from collections import defaultdict
 
-import scipy.stats as stats
 from sklearn.decomposition import TruncatedSVD
 import torch
 from torch.autograd import Variable
@@ -25,13 +24,12 @@ class SmoothInverseFrequencyBaseline(nn.Module):
         self.unigram_prob = defaultdict(int)
         self.word_vec_dim = self.embedding.weight.size(1)
 
-        if supervised:
-            self.classifier = nn.Sequential(
-                nn.Linear(2*self.word_vec_dim, 2400),
-                nn.Tanh(),
-                nn.Linear(2400, n_out),
-                nn.LogSoftmax(1)
-            )
+        self.classifier = nn.Sequential(
+            nn.Linear(2*self.word_vec_dim, 2400),
+            nn.Tanh(),
+            nn.Linear(2400, n_out),
+            nn.LogSoftmax(1)
+        )
 
     def populate_word_frequency_estimation(self, data_loader):
         """
@@ -119,40 +117,17 @@ class SmoothInverseFrequencyBaseline(nn.Module):
         if len(self.unigram_prob) == 0:
             raise ValueError('Word frequency lookup dictionary is not populated. Did you call populate_word_frequency_estimation?')
 
-        if not self.supervised:
-            raise ValueError('forward should only be called for supervised model.')
-
         sentence_embedding_a, sentence_embedding_b = self.compute_sentence_embedding(batch)
-        elem_wise_product = sentence_embedding_a * sentence_embedding_b
-        abs_diff = torch.abs(sentence_embedding_a - sentence_embedding_b)
-        concat_input = torch.cat([elem_wise_product, abs_diff], dim=1)
-        output = self.classifier(concat_input)
-        return output
+        if self.supervised:
+            elem_wise_product = sentence_embedding_a * sentence_embedding_b
+            abs_diff = torch.abs(sentence_embedding_a - sentence_embedding_b)
+            concat_input = torch.cat([elem_wise_product, abs_diff], dim=1)
+            scores = self.classifier(concat_input)
 
-    def score(self, data_loader):
-        """
-        Compute correlation between predicted score and actual score
-        """
-        predictions = []
-        gold = []
-        for batch_idx, batch in enumerate(data_loader):
-            sentence_embedding_a, sentence_embedding_b = self.compute_sentence_embedding(batch)
-            num_classes = batch.relatedness_score.size(1)
-            predict_classes = torch.arange(1, num_classes + 1).expand(len(batch.id), num_classes)
+            # num_classes = batch.relatedness_score.size(1)
+            # predict_classes = Variable(torch.arange(1, num_classes + 1).expand(len(batch.id), num_classes))
+            # scores = (predict_classes * scores.exp()).sum(dim=1)
+        else:
+            scores = self.cosine_similarity(sentence_embedding_a, sentence_embedding_b)
 
-            if self.supervised:
-                scores = (predict_classes * self(batch).data.exp()).sum(dim=1)
-            else:
-                scores = self.cosine_similarity(sentence_embedding_a, sentence_embedding_b).data
-            predictions.append(scores)
-
-            true_scores = (predict_classes * batch.relatedness_score.data).sum(dim=1)
-            gold.append(true_scores)
-
-        predicted_scores = torch.cat(predictions).numpy()
-        gold_scores = torch.cat(gold).numpy()
-
-        pearson_score = stats.pearsonr(predicted_scores, gold_scores)[0]
-        spearman_score = stats.spearmanr(predicted_scores, gold_scores)[0]
-
-        return pearson_score, spearman_score
+        return scores
