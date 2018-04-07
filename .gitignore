@@ -2,6 +2,7 @@
 .idea/
 .vector_cache/
 *.model
+runs/
 
 *.pyc
 __pycache__/

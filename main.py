@@ -71,4 +71,4 @@ if __name__ == '__main__':
 
     optimizer = O.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=3e-4)
     runner = Runner(model, loss_fn, metrics, optimizer, y_to_score, args.device, None)
-    runner.run(args.epochs, train_loader, dev_loader, 1000)
+    runner.run(args.epochs, train_loader, dev_loader, test_loader, 1000)
