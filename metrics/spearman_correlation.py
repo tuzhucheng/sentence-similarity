@@ -4,9 +4,9 @@ import scipy.stats as stats
 import torch
 
 
-class PearsonCorrelation(Metric):
+class SpearmanCorrelation(Metric):
     """
-    Calculates the Pearson correlation.
+    Calculates the Spearman correlation.
     `update` must receive output of the form (y_pred, y).
     """
     def reset(self):
@@ -20,10 +20,10 @@ class PearsonCorrelation(Metric):
 
     def compute(self):
         if len(self._predictions) == 0:
-            raise NotComputableError('Pearson correlation must have at least one example before it can be computed')
+            raise NotComputableError('Spearman correlation must have at least one example before it can be computed')
 
         predicted_scores = torch.cat(self._predictions).data.numpy()
         gold_scores = torch.cat(self._gold).data.numpy()
 
-        pearson_score = stats.pearsonr(predicted_scores, gold_scores)[0]
-        return pearson_score
+        spearman_score = stats.spearmanr(predicted_scores, gold_scores)[0]
+        return spearman_score
