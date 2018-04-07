@@ -33,7 +33,7 @@ def create_supervised_trainer(model, optimizer, loss_fn, cuda=False):
     return Engine(_update)
 
 
-def create_supervised_evaluator(model, metrics=None, y_to_score=None, cuda=False):
+def create_supervised_evaluator(model, metrics=None, y_to_score=None, pred_to_score=None, cuda=False):
     """
     Factory function for creating an evaluator for supervised models
     Args:
@@ -49,7 +49,9 @@ def create_supervised_evaluator(model, metrics=None, y_to_score=None, cuda=False
         y_pred = model(x)
         if y_to_score is not None:
             y = y_to_score(y, batch)
-            y_pred = y_to_score(y_pred, batch)
+
+        if pred_to_score is not None:
+            y_pred = pred_to_score(y_pred, batch)
 
         return y_pred, y
 
