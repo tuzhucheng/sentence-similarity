@@ -123,10 +123,6 @@ class SmoothInverseFrequencyBaseline(nn.Module):
             abs_diff = torch.abs(sentence_embedding_a - sentence_embedding_b)
             concat_input = torch.cat([elem_wise_product, abs_diff], dim=1)
             scores = self.classifier(concat_input)
-
-            # num_classes = batch.relatedness_score.size(1)
-            # predict_classes = Variable(torch.arange(1, num_classes + 1).expand(len(batch.id), num_classes))
-            # scores = (predict_classes * scores.exp()).sum(dim=1)
         else:
             scores = self.cosine_similarity(sentence_embedding_a, sentence_embedding_b)
 
