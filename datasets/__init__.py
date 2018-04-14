@@ -6,7 +6,7 @@ from datasets.sick import SICK
 
 def get_dataset(args):
     if args.dataset == 'sick':
-        train_loader, dev_loader, test_loader = SICK.iters(batch_size=args.batch_size, shuffle=True)
+        train_loader, dev_loader, test_loader = SICK.iters(batch_size=args.batch_size, device=args.device, shuffle=True)
 
         embedding_dim = SICK.TEXT.vocab.vectors.size()
         embedding = nn.Embedding(embedding_dim[0], embedding_dim[1])

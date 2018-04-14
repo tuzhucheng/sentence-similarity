@@ -21,6 +21,10 @@ from runners import Runner
 def y_to_score(y, batch):
     num_classes = batch.relatedness_score.size(1)
     predict_classes = Variable(torch.arange(1, num_classes + 1).expand(len(batch.id), num_classes))
+    if y.is_cuda:
+        with torch.cuda.device(y.get_device()):
+            predict_classes = predict_classes.cuda()
+
     return (predict_classes * y.exp()).sum(dim=1)
 
 

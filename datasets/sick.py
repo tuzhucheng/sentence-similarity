@@ -62,7 +62,6 @@ class SICK(TabularDataset):
 
     @classmethod
     def iters(cls, batch_size=64, device=-1, shuffle=True, vectors='glove.840B.300d'):
-
         cls.TEXT = Field(sequential=True, tokenize='spacy', lower=True, batch_first=True)
         cls.LABEL = Field(sequential=False, use_vocab=False, batch_first=True, tensor_type=torch.FloatTensor, postprocessing=Pipeline(get_class_probs))
         cls.ID = Field(sequential=False, use_vocab=False, batch_first=True, tensor_type=torch.FloatTensor)

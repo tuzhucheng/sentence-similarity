@@ -22,8 +22,8 @@ class PearsonCorrelation(Metric):
         if len(self._predictions) == 0:
             raise NotComputableError('Pearson correlation must have at least one example before it can be computed')
 
-        predicted_scores = torch.cat(self._predictions).data.numpy()
-        gold_scores = torch.cat(self._gold).data.numpy()
+        predicted_scores = torch.cat(self._predictions).data.cpu().numpy()
+        gold_scores = torch.cat(self._gold).data.cpu().numpy()
 
         pearson_score = stats.pearsonr(predicted_scores, gold_scores)[0]
         return pearson_score

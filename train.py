@@ -1,7 +1,5 @@
 from ignite.engines.engine import Engine
-from ignite._utils import to_variable, to_tensor
 import torch
-from torch.autograd import Variable
 
 
 def _prepare_batch(batch):

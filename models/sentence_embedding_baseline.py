@@ -62,7 +62,7 @@ class SmoothInverseFrequencyBaseline(nn.Module):
         """
         weights = [self.alpha / (self.unigram_prob.get(w, 0) + self.alpha) for w in sentence]
         weights.extend([0.0] * (sentence_embedding.size(1) - len(weights)))  # expand weights to cover padding
-        weights = torch.FloatTensor(weights).expand_as(sentence_embedding.data)
+        weights = sentence_embedding.data.float().new(weights).expand_as(sentence_embedding.data)
 
         return (Variable(weights) * sentence_embedding).sum(1)
 
@@ -79,7 +79,7 @@ class SmoothInverseFrequencyBaseline(nn.Module):
         svd = TruncatedSVD(n_components=1, n_iter=7)
         X = batch_sentence_embedding.data.numpy()
         svd.fit(X)
-        pc = Variable(torch.FloatTensor(svd.components_))
+        pc = Variable(batch_sentence_embedding.data.float().new(svd.components_))
         new_embedding = batch_sentence_embedding - batch_sentence_embedding.matmul(pc.transpose(0, 1)).matmul(pc)
         return new_embedding
 
