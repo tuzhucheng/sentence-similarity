@@ -77,7 +77,7 @@ class SmoothInverseFrequencyBaseline(nn.Module):
         """
         # Use truncated SVD to not center data
         svd = TruncatedSVD(n_components=1, n_iter=7)
-        X = batch_sentence_embedding.data.numpy()
+        X = batch_sentence_embedding.data.cpu().numpy()
         svd.fit(X)
         pc = Variable(batch_sentence_embedding.data.float().new(svd.components_))
         new_embedding = batch_sentence_embedding - batch_sentence_embedding.matmul(pc.transpose(0, 1)).matmul(pc)
@@ -95,8 +95,8 @@ class SmoothInverseFrequencyBaseline(nn.Module):
         return cosine_sim
 
     def compute_sentence_embedding(self, batch):
-        sentence_embedding_a = Variable(torch.zeros(batch.sentence_a.size(0), self.word_vec_dim))
-        sentence_embedding_b = Variable(torch.zeros(batch.sentence_b.size(0), self.word_vec_dim))
+        sentence_embedding_a = Variable(batch.sentence_a.data.float().new(batch.sentence_a.size(0), self.word_vec_dim).zero_())
+        sentence_embedding_b = Variable(batch.sentence_b.data.float().new(batch.sentence_b.size(0), self.word_vec_dim).zero_())
 
         # compute weighted sum of word vectors
         for i, (raw_sent_a, raw_sent_b, sent_a_idx, sent_b_idx) in enumerate(zip(batch.raw_sentence_a, batch.raw_sentence_b, batch.sentence_a, batch.sentence_b)):
