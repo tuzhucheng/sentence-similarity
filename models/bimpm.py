@@ -40,6 +40,8 @@ class BiMPM(nn.Module):
         self.m_maxpool_backward_W = nn.Parameter(torch.rand(self.l, self.n_hidden_units))   # W^4 in paper
         self.m_attn_forward_W = nn.Parameter(torch.rand(self.l, self.n_hidden_units))       # W^5 in paper
         self.m_attn_backward_W = nn.Parameter(torch.rand(self.l, self.n_hidden_units))      # W^6 in paper
+        self.m_maxattn_forward_W = nn.Parameter(torch.rand(self.l, self.n_hidden_units))    # W^7 in paper
+        self.m_maxattn_backward_W = nn.Parameter(torch.rand(self.l, self.n_hidden_units))   # W^8 in paper
 
         self.aggregation_lstm = nn.LSTM(
             input_size=8*self.l,
@@ -177,3 +179,14 @@ class BiMPM(nn.Module):
         m_attn_s1_b = self.matching_strategy_full(s1_context_backward, attn_mean_vec_s1_b, self.m_attn_forward_W)
         m_attn_s2_f = self.matching_strategy_full(s2_context_forward, attn_mean_vec_s2_f, self.m_attn_forward_W)
         m_attn_s2_b = self.matching_strategy_full(s2_context_backward, attn_mean_vec_s2_b, self.m_attn_forward_W)
+
+        # (4) Max-Attentive-Matching
+        attn_max_vec_s2_f, _ = attn_s1_f.max(dim=1)  # batch x seq_len_2 x hidden
+        attn_max_vec_s2_b, _ = attn_s1_b.max(dim=1)  # batch x seq_len_2 x hidden
+        attn_max_vec_s1_f, _ = attn_s2_f.max(dim=2)  # batch x seq_len_1 x hidden
+        attn_max_vec_s1_b, _ = attn_s2_b.max(dim=2)  # batch x seq_len_1 x hidden
+
+        m_maxattn_s1_f = self.matching_strategy_full(s1_context_forward, attn_max_vec_s1_f, self.m_maxattn_forward_W)
+        m_maxattn_s1_b = self.matching_strategy_full(s1_context_backward, attn_max_vec_s1_b, self.m_maxattn_forward_W)
+        m_maxattn_s2_f = self.matching_strategy_full(s2_context_forward, attn_max_vec_s2_f, self.m_maxattn_forward_W)
+        m_maxattn_s2_b = self.matching_strategy_full(s2_context_backward, attn_max_vec_s2_b, self.m_maxattn_forward_W)
