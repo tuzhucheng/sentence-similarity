@@ -7,7 +7,7 @@ import torch.nn.functional as F
 class MPCNN(nn.Module):
 
     def __init__(self, embedding, n_word_dim, n_holistic_filters, n_per_dim_filters, filter_widths, hidden_layer_units, num_classes, dropout):
-        super(MPCNN, self).__init__(embedding, n_word_dim, n_holistic_filters, n_per_dim_filters, filter_widths, hidden_layer_units, num_classes, dropout)
+        super(MPCNN, self).__init__()
         self.n_word_dim = n_word_dim
         self.n_holistic_filters = n_holistic_filters
         self.n_per_dim_filters = n_per_dim_filters
