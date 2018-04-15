@@ -34,12 +34,8 @@ class BiMPM(nn.Module):
             bidirectional=True
         )
 
-        self.matching_layer_params = []
         for i in range(8):
-            self.matching_layer_params.append(
-                nn.Parameter(torch.rand(self.l, self.n_hidden_units))
-            )
-        self.matching_layer_params = nn.ModuleList(self.matching_layer_params)
+            setattr(self, f'matching_weight_{i}', nn.Parameter(torch.rand(self.l, self.n_hidden_units)))
 
         self.aggregation_lstm = nn.LSTM(
             input_size=8*self.l,
