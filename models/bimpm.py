@@ -1,5 +1,5 @@
 """
-This implementation is inspired by https://github.com/galsang/BIMPM-pytorch/blob/master/model/BIMPM.py
+This implementation is partially inspired by https://github.com/galsang/BIMPM-pytorch/blob/master/model/BIMPM.py
 """
 
 import torch
@@ -34,8 +34,10 @@ class BiMPM(nn.Module):
             bidirectional=True
         )
 
-        self.m_full_forward_W = nn.Parameter(torch.rand(self.l, self.n_hidden_units))
-        self.m_full_backward_W = nn.Parameter(torch.rand(self.l, self.n_hidden_units))
+        self.m_full_forward_W = nn.Parameter(torch.rand(self.l, self.n_hidden_units))       # W^1 in paper
+        self.m_full_backward_W = nn.Parameter(torch.rand(self.l, self.n_hidden_units))      # W^2 in paper
+        self.m_maxpool_forward_W = nn.Parameter(torch.rand(self.l, self.n_hidden_units))    # W^3 in paper
+        self.m_maxpool_backward_W = nn.Parameter(torch.rand(self.l, self.n_hidden_units))   # W^4 in paper
 
         self.aggregation_lstm = nn.LSTM(
             input_size=8*self.l,
@@ -75,6 +77,35 @@ class BiMPM(nn.Module):
         cos_sim = F.cosine_similarity(Wv1, Wv2, dim=3)
         return cos_sim
 
+    def matching_strategy_pairwise(self, v1, v2, W):
+        """
+        Used as a subroutine for (2) Maxpooling-Matching
+        :param v1: batch x seq_len_1 x n_hidden
+        :param v2: batch x seq_len_2 x n_hidden
+        :param W: l x n_hidden
+        :return: batch x seq_len_1 x seq_len_2 x l
+        """
+        l = W.size(0)
+        batch_size = v1.size(0)
+
+        v1_expanded = v1.unsqueeze(1).expand(-1, l, -1, -1)                 # batch x l x seq_len_1 x n_hidden
+        W1_expanded = W.unsqueeze(1).expand(batch_size, -1, v1.size(1), -1) # batch x l x seq_len_1 x n_hidden
+        Wv1 = W1_expanded.mul(v1_expanded)                                  # batch x l x seq_len_1 x n_hidden
+
+        v2_expanded = v2.unsqueeze(1).expand(-1, l, -1, -1)                 # batch x l x seq_len_2 x n_hidden
+        W2_expanded = W.unsqueeze(1).expand(batch_size, -1, v2.size(1), -1) # batch x l x seq_len_2 x n_hidden
+        Wv2 = W2_expanded.mul(v2_expanded)                                  # batch x l x seq_len_2 x n_hidden
+
+        dot = torch.matmul(Wv1, Wv2.transpose(3,2))
+        v1_norm = v1_expanded.norm(p=2, dim=3, keepdim=True)
+        v2_norm = v2_expanded.norm(p=2, dim=3, keepdim=True)
+        norm_product = torch.matmul(v1_norm, v2_norm.transpose(3,2))
+
+        cosine_matrix = dot / norm_product
+        cosine_matrix = cosine_matrix.permute(0, 2, 3, 1)
+
+        return cosine_matrix
+
     def forward(self, batch):
         # Word Representation Layer
         sent1 = self.word_embedding(batch.sentence_a)
@@ -88,8 +119,17 @@ class BiMPM(nn.Module):
 
         # Matching Layer
 
-        # Full matching
+        # (1) Full matching
         m_full_s1_f = self.matching_strategy_full(s1_context_forward, s2_context_forward[:, -1, :], self.m_full_forward_W)
         m_full_s1_b = self.matching_strategy_full(s1_context_backward, s2_context_backward[:, 0, :], self.m_full_backward_W)
         m_full_s2_f = self.matching_strategy_full(s2_context_forward, s1_context_forward[:, -1, :], self.m_full_forward_W)
         m_full_s2_b = self.matching_strategy_full(s2_context_backward, s1_context_backward[:, 0, :], self.m_full_backward_W)
+
+        # (2) Maxpooling-Matching
+        m_pair_f = self.matching_strategy_pairwise(s1_context_forward, s2_context_backward, self.m_maxpool_forward_W)
+        m_pair_b = self.matching_strategy_pairwise(s1_context_backward, s2_context_backward, self.m_maxpool_backward_W)
+
+        m_maxpool_s1_f, _ = m_pair_f.max(dim=2)
+        m_maxpool_s1_b, _ = m_pair_b.max(dim=2)
+        m_maxpool_s2_f, _ = m_pair_f.max(dim=1)
+        m_maxpool_s3_b, _ = m_pair_b.max(dim=1)
