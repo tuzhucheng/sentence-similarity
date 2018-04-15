@@ -7,14 +7,14 @@ import torch
 class PearsonCorrelation(Metric):
     """
     Calculates the Pearson correlation.
-    `update` must receive output of the form (y_pred, y).
+    `update` must receive output of the form (ids, y_pred, y).
     """
     def reset(self):
         self._predictions = []
         self._gold = []
 
     def update(self, output):
-        y_pred, y = output
+        _, y_pred, y = output
         self._predictions.append(y_pred)
         self._gold.append(y)
 

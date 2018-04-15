@@ -12,26 +12,17 @@ import torch.nn as nn
 import torch.optim as O
 
 from datasets import get_dataset
+from metrics.retrieval_metrics import MAP, MRR
 from metrics.pearson_correlation import PearsonCorrelation
 from metrics.spearman_correlation import SpearmanCorrelation
 from models import get_model
 from runners import Runner
 
 
-def y_to_score(y, batch):
-    num_classes = batch.relatedness_score.size(1)
-    predict_classes = Variable(torch.arange(1, num_classes + 1).expand(len(batch.id), num_classes))
-    if y.is_cuda:
-        with torch.cuda.device(y.get_device()):
-            predict_classes = predict_classes.cuda()
-
-    return (predict_classes * y.exp()).sum(dim=1)
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Sentence similarity models')
     parser.add_argument('--model', default='sif', choices=['sif'], help='Model to use')
-    parser.add_argument('--dataset', default='sick', choices=['sick'], help='Dataset to use')
+    parser.add_argument('--dataset', default='sick', choices=['sick', 'wikiqa'], help='Dataset to use')
     parser.add_argument('--batch-size', type=int, default=64, help='Batch size')
     parser.add_argument('--epochs', type=int, default=15, help='Number of epochs')
     parser.add_argument('--lr', type=float, default=2e-4, help='Learning rate')
@@ -72,7 +63,51 @@ if __name__ == '__main__':
         }
         if args.unsupervised:
             args.epochs = 0
-        resolved_pred_to_score = (lambda y, batch: y) if args.unsupervised else y_to_score
+
+        def y_to_score(y, batch):
+            num_classes = batch.relatedness_score.size(1)
+            predict_classes = Variable(torch.arange(1, num_classes + 1).expand(len(batch.id), num_classes))
+            if y.is_cuda:
+                with torch.cuda.device(y.get_device()):
+                    predict_classes = predict_classes.cuda()
+
+            return (predict_classes * y).sum(dim=1)
+
+        def resolved_pred_to_score(y, batch):
+            num_classes = batch.relatedness_score.size(1)
+            predict_classes = Variable(torch.arange(1, num_classes + 1).expand(len(batch.id), num_classes))
+            if y.is_cuda:
+                with torch.cuda.device(y.get_device()):
+                    predict_classes = predict_classes.cuda()
+
+            return (predict_classes * y.exp()).sum(dim=1)
+
+        resolved_pred_to_score = (lambda y, batch: y) if args.unsupervised else resolved_pred_to_score
+
+    elif args.dataset == 'wikiqa':
+        # Always supervised
+        model.populate_word_frequency_estimation(train_loader)
+
+        loss_fn = nn.KLDivLoss()
+        metrics = {
+            'map': MAP(),
+            'mrr': MRR()
+        }
+        if args.unsupervised:
+            args.epochs = 0
+
+        def resolved_pred_to_score(y, batch):
+            num_classes = batch.relatedness_score.size(1)
+            predict_classes = Variable(torch.arange(0, num_classes).expand(len(batch.id), num_classes))
+            if y.is_cuda:
+                with torch.cuda.device(y.get_device()):
+                    predict_classes = predict_classes.cuda()
+
+            return (predict_classes * y.exp()).sum(dim=1)
+
+        def y_to_score(y, batch):
+            return y[:, 1]
+
     else:
         raise ValueError(f'Unrecognized dataset: {args.dataset}')
 

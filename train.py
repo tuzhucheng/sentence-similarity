@@ -51,7 +51,7 @@ def create_supervised_evaluator(model, metrics=None, y_to_score=None, pred_to_sc
         if pred_to_score is not None:
             y_pred = pred_to_score(y_pred, batch)
 
-        return y_pred, y
+        return batch.id, y_pred, y
 
     engine = Engine(_inference)
 

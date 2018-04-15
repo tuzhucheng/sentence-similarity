@@ -19,6 +19,12 @@ Download SpaCy English model:
 python -m spacy download en
 ```
 
+Compile trec_eval for computing MAP/MRR metrics for WikiQA dataset:
+```bash
+cd metrics
+./get_trec_eval.sh
+```
+
 ## Running
 
 ### Baseline
@@ -27,10 +33,10 @@ python -m spacy download en
 ```bash
 # Unsupervised
 $ python main.py --model sif --dataset sick --unsupervised
-Test Results - Epoch: 0 pearson: 0.6719 spearman: 0.5561
+Test Results - Epoch: 0 pearson: 0.7199 spearman: 0.5956
 # Supervised
 $ python main.py --model sif --dataset sick
-Test Results - Epoch: 15 pearson: 0.7291 spearman: 0.6177
+Test Results - Epoch: 15 pearson: 0.7763 spearman: 0.6637
 ```
 
 ## Attribution
