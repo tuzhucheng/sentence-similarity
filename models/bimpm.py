@@ -157,7 +157,7 @@ class BiMPM(nn.Module):
         m_maxpool_s1_f, _ = m_pair_f.max(dim=2)
         m_maxpool_s1_b, _ = m_pair_b.max(dim=2)
         m_maxpool_s2_f, _ = m_pair_f.max(dim=1)
-        m_maxpool_s3_b, _ = m_pair_b.max(dim=1)
+        m_maxpool_s2_b, _ = m_pair_b.max(dim=1)
 
         # (3) Attentive-Matching
         # cosine_f and cosine_b are batch x seq_len_1 x seq_len_2
@@ -190,3 +190,20 @@ class BiMPM(nn.Module):
         m_maxattn_s1_b = self.matching_strategy_full(s1_context_backward, attn_max_vec_s1_b, self.m_maxattn_forward_W)
         m_maxattn_s2_f = self.matching_strategy_full(s2_context_forward, attn_max_vec_s2_f, self.m_maxattn_forward_W)
         m_maxattn_s2_b = self.matching_strategy_full(s2_context_backward, attn_max_vec_s2_b, self.m_maxattn_forward_W)
+
+        s1_combined_match_vec = torch.cat([m_full_s1_f, m_maxpool_s1_f, m_attn_s1_f, m_maxattn_s1_f,
+                                           m_full_s1_b, m_maxpool_s1_b, m_attn_s1_b, m_maxattn_s1_b], dim=2)
+        s2_combined_match_vec = torch.cat([m_full_s2_f, m_maxpool_s2_f, m_attn_s2_f, m_maxattn_s2_f,
+                                           m_full_s2_b, m_maxpool_s2_b, m_attn_s2_b, m_maxattn_s2_b], dim=2)
+
+        # Aggregation Layer
+        s1_agg_out, (s1_agg_h, s1_agg_c) = self.aggregation_lstm(s1_combined_match_vec)
+        s2_agg_out, (s2_agg_h, s2_agg_c) = self.aggregation_lstm(s2_combined_match_vec)
+
+        # s1_agg_h and s2_agg_h are 2 x batch x n_hidden
+        matching_vector = torch.cat([s1_agg_h.transpose(1, 0), s2_agg_h.transpose(1, 0)], dim=1).view(-1, 4 * self.n_hidden_units)
+
+        # Prediction Layer
+        final_pred = self.prediction_layer(matching_vector)
+
+        return final_pred
