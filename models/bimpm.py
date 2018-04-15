@@ -52,9 +52,18 @@ class BiMPM(nn.Module):
 
         self.prediction_layer = nn.Sequential(
             nn.Linear(4*self.n_hidden_units, 2*self.n_hidden_units),
-            nn.Linear(2*self.n_hidden_units, self.n_classes)
+            nn.Tanh(),
+            nn.Dropout(dropout),
+            nn.Linear(2*self.n_hidden_units, self.n_classes),
+            nn.LogSoftmax(1)
         )
 
+    def matching_strategy_full(self):
+        pass
 
     def forward(self, batch):
-        pass
+        sent1 = self.embedding(batch.sentence_a)
+        sent2 = self.embedding(batch.sentence_b)
+
+        s1_context_out, s1_context_h, s1_context_c = self.context_representation_lstm(sent1)
+        s2_context_out, s2_context_h, s2_context_c = self.context_representation_lstm(sent2)
