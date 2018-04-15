@@ -7,14 +7,9 @@ import logging
 import numpy as np
 import random
 import torch
-from torch.autograd import Variable
-import torch.nn as nn
 import torch.optim as O
 
-from datasets import get_dataset
-from metrics.retrieval_metrics import MAP, MRR
-from metrics.pearson_correlation import PearsonCorrelation
-from metrics.spearman_correlation import SpearmanCorrelation
+from datasets import get_dataset, get_dataset_configurations
 from models import get_model
 from runners import Runner
 
@@ -53,63 +48,10 @@ if __name__ == '__main__':
     dataset_cls, train_loader, dev_loader, test_loader, embedding = get_dataset(args)
     model = get_model(args, dataset_cls, embedding)
 
-    if args.dataset == 'sick':
+    if args.model == 'sif':
         model.populate_word_frequency_estimation(train_loader)
 
-        loss_fn = nn.KLDivLoss()
-        metrics = {
-            'pearson': PearsonCorrelation(),
-            'spearman': SpearmanCorrelation()
-        }
-        if args.unsupervised:
-            args.epochs = 0
-
-        def y_to_score(y, batch):
-            num_classes = batch.relatedness_score.size(1)
-            predict_classes = Variable(torch.arange(1, num_classes + 1).expand(len(batch.id), num_classes))
-            if y.is_cuda:
-                with torch.cuda.device(y.get_device()):
-                    predict_classes = predict_classes.cuda()
-
-            return (predict_classes * y).sum(dim=1)
-
-        def resolved_pred_to_score(y, batch):
-            num_classes = batch.relatedness_score.size(1)
-            predict_classes = Variable(torch.arange(1, num_classes + 1).expand(len(batch.id), num_classes))
-            if y.is_cuda:
-                with torch.cuda.device(y.get_device()):
-                    predict_classes = predict_classes.cuda()
-
-            return (predict_classes * y.exp()).sum(dim=1)
-
-        resolved_pred_to_score = (lambda y, batch: y) if args.unsupervised else resolved_pred_to_score
-
-    elif args.dataset == 'wikiqa':
-        # Always supervised
-        model.populate_word_frequency_estimation(train_loader)
-
-        loss_fn = nn.KLDivLoss()
-        metrics = {
-            'map': MAP(),
-            'mrr': MRR()
-        }
-        if args.unsupervised:
-            args.epochs = 0
-
-        def resolved_pred_to_score(y, batch):
-            num_classes = batch.relatedness_score.size(1)
-            predict_classes = Variable(torch.arange(0, num_classes).expand(len(batch.id), num_classes))
-            if y.is_cuda:
-                with torch.cuda.device(y.get_device()):
-                    predict_classes = predict_classes.cuda()
-
-            return (predict_classes * y.exp()).sum(dim=1)
-
-        def y_to_score(y, batch):
-            return y[:, 1]
-
-    else:
-        raise ValueError(f'Unrecognized dataset: {args.dataset}')
+    loss_fn, metrics, y_to_score, resolved_pred_to_score = get_dataset_configurations(args)
 
     optimizer = O.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=3e-4)
     runner = Runner(model, loss_fn, metrics, optimizer, y_to_score, resolved_pred_to_score, args.device, None)
