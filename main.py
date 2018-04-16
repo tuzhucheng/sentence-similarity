@@ -51,6 +51,12 @@ if __name__ == '__main__':
     if args.model == 'sif':
         model.populate_word_frequency_estimation(train_loader)
 
+    total_params = 0
+    for param in model.parameters():
+        size = [s for s in param.size()]
+        total_params += np.prod(size)
+    logger.info('Total number of parameters: %s', total_params)
+
     loss_fn, metrics, y_to_score, resolved_pred_to_score = get_dataset_configurations(args)
 
     optimizer = O.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=3e-4)
