@@ -16,7 +16,7 @@ from runners import Runner
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Sentence similarity models')
-    parser.add_argument('--model', default='sif', choices=['sif', 'mpcnn'], help='Model to use')
+    parser.add_argument('--model', default='sif', choices=['sif', 'mpcnn', 'bimpm'], help='Model to use')
     parser.add_argument('--dataset', default='sick', choices=['sick', 'wikiqa'], help='Dataset to use')
     parser.add_argument('--batch-size', type=int, default=64, help='Batch size')
     parser.add_argument('--epochs', type=int, default=15, help='Number of epochs')
