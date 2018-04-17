@@ -2,6 +2,7 @@ import numpy as np
 
 from models.sentence_embedding_baseline import SmoothInverseFrequencyBaseline
 from models.mpcnn import MPCNN
+from models.mpcnn_lite import MPCNNLite
 from models.bimpm import BiMPM
 
 
@@ -15,6 +16,8 @@ def get_model(args, dataset_cls, embedding):
                                                supervised=args.supervised)
     elif args.model == 'mpcnn':
         model = MPCNN(embedding, 300, 300, 20, [1, 2, 3, np.inf], 150, dataset_cls.num_classes, 0.5)
+    elif args.model == 'mpcnn-lite':
+        model = MPCNNLite(embedding, 300, 300, [1, 2, 3, np.inf], 150, dataset_cls.num_classes, 0.5)
     elif args.model == 'bimpm':
         model = BiMPM(embedding, 300, 50, 20, 100, dataset_cls.num_classes, 0.1)
     else:
