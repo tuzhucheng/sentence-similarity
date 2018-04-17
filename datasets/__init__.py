@@ -45,7 +45,7 @@ def get_dataset_configurations(args):
             args.epochs = 0
 
         def y_to_score(y, batch):
-            num_classes = batch.relatedness_score.size(1)
+            num_classes = batch.dataset.num_classes
             predict_classes = Variable(torch.arange(1, num_classes + 1).expand(len(batch.id), num_classes))
             if y.is_cuda:
                 with torch.cuda.device(y.get_device()):
@@ -54,7 +54,7 @@ def get_dataset_configurations(args):
             return (predict_classes * y).sum(dim=1)
 
         def resolved_pred_to_score(y, batch):
-            num_classes = batch.relatedness_score.size(1)
+            num_classes = batch.dataset.num_classes
             predict_classes = Variable(torch.arange(1, num_classes + 1).expand(len(batch.id), num_classes))
             if y.is_cuda:
                 with torch.cuda.device(y.get_device()):
@@ -77,7 +77,7 @@ def get_dataset_configurations(args):
             args.epochs = 0
 
         def resolved_pred_to_score(y, batch):
-            num_classes = batch.relatedness_score.size(1)
+            num_classes = batch.dataset.num_classes
             predict_classes = Variable(torch.arange(0, num_classes).expand(len(batch.id), num_classes))
             if y.is_cuda:
                 with torch.cuda.device(y.get_device()):
