@@ -5,4 +5,4 @@ scipy==1.0.1
 spacy==2.0.11
 tensorboardX==1.1
 torch==0.3.1.post2
-torchtext==0.2.1
+torchtext==0.2.3
