@@ -23,6 +23,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=2e-4, help='Learning rate')
     parser.add_argument('--seed', type=int, default=1234, help='Seed for reproducibility')
     parser.add_argument('--device', type=int, default=0, help='Device, -1 for CPU')
+    parser.add_argument('--log-interval', type=int, default=50, help='Device, -1 for CPU')
 
     # Special options for SIF model
     parser.add_argument('--unsupervised', action='store_true', default=False, help='Set this flag to use unsupervised mode.')
@@ -61,4 +62,4 @@ if __name__ == '__main__':
 
     optimizer = O.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=3e-4)
     runner = Runner(model, loss_fn, metrics, optimizer, y_to_score, resolved_pred_to_score, args.device, None)
-    runner.run(args.epochs, train_loader, dev_loader, test_loader, 1000)
+    runner.run(args.epochs, train_loader, dev_loader, test_loader, args.log_interval)

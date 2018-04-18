@@ -8,12 +8,7 @@ from train import create_supervised_evaluator, create_supervised_trainer
 class Runner(object):
 
     def __init__(self, model, loss_fn, metrics, optimizer, y_to_score, pred_to_score, device, log_dir):
-        if device != -1:
-            with torch.cuda.device(device):
-                self.model = model.cuda()
-        else:
-            self.model = model
-
+        self.model = model
         self.loss_fn = loss_fn
         self.metrics = metrics
         self.optimizer = optimizer
@@ -30,10 +25,10 @@ class Runner(object):
 
         @trainer.on(Events.ITERATION_COMPLETED)
         def log_training_loss(engine):
-            iter = (engine.state.iteration - 1) % len(train_loader) + 1
-            if iter % log_interval == 0:
+            iteration = (engine.state.iteration - 1) % len(train_loader) + 1
+            if iteration % log_interval == 0:
                 print("Epoch[{}] Iteration[{}/{}] Loss: {:.2f}"
-                      "".format(engine.state.epoch, iter, len(train_loader), engine.state.output))
+                      "".format(engine.state.epoch, iteration, len(train_loader), engine.state.output))
                 self.writer.add_scalar("train/loss", engine.state.output, engine.state.iteration)
 
         @trainer.on(Events.EPOCH_COMPLETED)

@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from models.sentence_embedding_baseline import SmoothInverseFrequencyBaseline
 from models.mpcnn import MPCNN
@@ -24,6 +25,7 @@ def get_model(args, dataset_cls, embedding):
         raise ValueError(f'Unrecognized dataset: {args.model}')
 
     if args.device != -1:
-        model = model.cuda()
+        with torch.cuda.device(args.device):
+            model = model.cuda()
 
     return model
