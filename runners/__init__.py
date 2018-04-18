@@ -1,8 +1,11 @@
 from ignite.engines import Events
 from tensorboardX import SummaryWriter
 import torch
+import uuid
 
 from train import create_supervised_evaluator, create_supervised_trainer
+
+import utils.utils as utils
 
 
 class Runner(object):
@@ -16,6 +19,8 @@ class Runner(object):
         self.pred_to_score = pred_to_score
         self.device = device
         self.writer = SummaryWriter(log_dir=log_dir)
+        self.best_score = 0
+        self.model_id = uuid.uuid4() + '.model'
 
     def run(self, epochs, train_loader, val_loader, test_loader, log_interval):
         cuda = self.device != -1
@@ -43,8 +48,21 @@ class Runner(object):
             for i, k in enumerate(state_metric_keys):
                 self.writer.add_scalar(f'dev/{k}', state_metric_vals[i], engine.state.epoch)
 
+            if state_metric_vals[0] > self.best_score:
+                state_dict = {
+                    'epoch': engine.state.epoch,
+                    'state_dict': self.model.state_dict(),
+                    'optimizer': self.optimizer.state_dict(),
+                    'eval_metric': state_metric_vals[0]
+                }
+                utils.save_checkpoint(state_dict, self.model_id)
+                self.best_score = state_metric_vals[0]
+
         @trainer.on(Events.COMPLETED)
         def log_test_results(engine):
+            checkpoint = torch.load(self.model_id)
+            self.model.load_state_dict(checkpoint['state_dict'])
+
             evaluator.run(test_loader)
             state_metrics = evaluator.state.metrics
 
