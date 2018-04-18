@@ -37,6 +37,16 @@ Test Results - Epoch: 0 pearson: 0.7199 spearman: 0.5956
 # Supervised
 $ python main.py --model sif --dataset sick
 Test Results - Epoch: 15 pearson: 0.7763 spearman: 0.6637
+$ python main.py --model mpcnn --dataset sick
+$ python main.py --model bimpm --dataset sick
+```
+
+*WikiQA*
+```bash
+$ python main.py --model sif --dataset wikiqa --epochs 15 --lr 0.001
+Test Results - Epoch: 15 map: 0.6295 mrr: 0.6404
+$ python main.py --model mpcnn --dataset wikiqa
+$ python main.py --model bimpm --dataset wikiqa
 ```
 
 ## Attribution
