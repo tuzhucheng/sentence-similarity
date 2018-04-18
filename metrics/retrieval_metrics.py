@@ -35,11 +35,20 @@ class RetrievalMetrics(Metric):
         results_fname = '{}.results'.format(randid)
         qrel_template = '{qid} 0 {docno} {rel}\n'
         results_template = '{qid} 0 {docno} 0 {sim} mymodel\n'
+
+        docnos = range(len(self._ids))
+        zipped_lines = list(zip(self._ids, docnos, predicted_scores, gold_scores))
+        zipped_lines.sort(key=lambda t: t[0])
+        relevant_doc_exists = set()
+        for line in zipped_lines:
+            if line[3] > 0:
+                relevant_doc_exists.add(line[0])
+
         with open(qrel_fname, 'w') as f1, open(results_fname, 'w') as f2:
-            docnos = range(len(self._ids))
-            for qid, docno, predicted, actual in zip(self._ids, docnos, predicted_scores, gold_scores):
-                f1.write(qrel_template.format(qid=qid, docno=docno, rel=actual))
-                f2.write(results_template.format(qid=qid, docno=docno, sim=predicted))
+            for qid, docno, predicted, actual in zipped_lines:
+                if qid in relevant_doc_exists:
+                    f1.write(qrel_template.format(qid=qid, docno=docno, rel=actual))
+                    f2.write(results_template.format(qid=qid, docno=docno, sim=predicted))
 
         trec_eval_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'trec_eval-9.0.5/trec_eval')
         trec_out = subprocess.check_output([trec_eval_path, '-m', 'map', '-m', 'recip_rank', qrel_fname, results_fname])

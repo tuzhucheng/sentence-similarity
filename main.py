@@ -21,6 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch-size', type=int, default=64, help='Batch size')
     parser.add_argument('--epochs', type=int, default=15, help='Number of epochs')
     parser.add_argument('--lr', type=float, default=2e-4, help='Learning rate')
+    parser.add_argument('--regularization', type=float, default=3e-4, help='Regularization')
     parser.add_argument('--seed', type=int, default=1234, help='Seed for reproducibility')
     parser.add_argument('--device', type=int, default=0, help='Device, -1 for CPU')
     parser.add_argument('--log-interval', type=int, default=50, help='Device, -1 for CPU')
@@ -60,6 +61,6 @@ if __name__ == '__main__':
 
     loss_fn, metrics, y_to_score, resolved_pred_to_score = get_dataset_configurations(args)
 
-    optimizer = O.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=3e-4)
+    optimizer = O.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.regularization)
     runner = Runner(model, loss_fn, metrics, optimizer, y_to_score, resolved_pred_to_score, args.device, None)
     runner.run(args.epochs, train_loader, dev_loader, test_loader, args.log_interval)
