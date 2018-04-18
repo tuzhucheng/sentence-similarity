@@ -20,7 +20,7 @@ class Runner(object):
         self.device = device
         self.writer = SummaryWriter(log_dir=log_dir)
         self.best_score = 0
-        self.model_id = uuid.uuid4() + '.model'
+        self.model_id = str(uuid.uuid4()) + '.model'
 
     def run(self, epochs, train_loader, val_loader, test_loader, log_interval):
         cuda = self.device != -1
